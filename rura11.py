@@ -61,84 +61,97 @@ time.sleep(5)
 tabela = WebDriverWait(driver, 10).until(
     EC.presence_of_element_located((By.ID, "tblDocumentosEnviados"))
 )
-
 time.sleep(5)
 
-linhas = tabela.find_elements(By.CSS_SELECTOR, "tbody tr")
 
+paginas = driver.find_elements(By.CSS_SELECTOR, ".paginate_button[data-dt-idx]")
+indices_paginas = [int(btn.get_attribute("data-dt-idx")) for btn in paginas]
 dados_gerais = []
 
-for linha in linhas:
+# Itera sobre cada página
+for idx in indices_paginas:
     try:
-        ultima_celula = linha.find_elements(By.TAG_NAME, "td")[-1]
-        ultima_celula.click()
+        if idx != 1:
+            botao_pagina = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, f'.paginate_button[data-dt-idx="{idx}"]'))
+            )
+            botao_pagina.click()
+            time.sleep(3)
 
-        link = ultima_celula.find_element(By.CSS_SELECTOR, 'a[title="Visualizar Documento"]')
-        link.click()
+        linhas = driver.find_elements(By.CSS_SELECTOR, "tbody tr")
 
-        print("88")
-        time.sleep(2)
+        for i in range(len(linhas)):
+            try:
+                linhas = driver.find_elements(By.CSS_SELECTOR, "tbody tr")
+                linha = linhas[i]
 
-        abas = driver.window_handles
+                celulas = linha.find_elements(By.TAG_NAME, "td")
+                if not celulas:
+                    continue
 
-        driver.switch_to.window(abas[-1])
+                link = celulas[-1].find_elements(By.CSS_SELECTOR, 'a[title="Visualizar Documento"]')
+                if not link:
+                    print("Link 'Visualizar Documento' não encontrado. Pulando...")
+                    continue
 
-        iframe = WebDriverWait(driver,10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "iframe"))
-        )
+                link[0].click()
+                time.sleep(2)
 
-        print('95')
+                abas = driver.window_handles
+                driver.switch_to.window(abas[-1])
 
-        driver.switch_to.frame(iframe)
+                iframe = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "iframe"))
+                )
+                driver.switch_to.frame(iframe)
 
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "table"))
+                )
 
-        WebDriverWait(driver,10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "table"))
-        )
+                html = driver.page_source
+                soup = BeautifulSoup(html, "html.parser")
 
-        html = driver.page_source
-        soup = BeautifulSoup(html, "html.parser")
+                rotulos = {
+                    "data-base": "Data-base",
+                    "valor do provento": "valor do provento",
+                    "data do pagamento": "data do pagamento",
+                    "período de referência": "período de referência"
+                }
 
-        rotulos = {
-            "Data base": "Data base",
-            "valor do provento" : "valor do provento",
-            "data do pagamento" : "data do pagamento",
-            "período de referência" : "período de referência"
-        }
-        print("104")
+                dados = {}
+                for tr in soup.find_all("tr"):
+                    tds = tr.find_all("td")
+                    if len(tds) >= 2:
+                        texto_rotulo = tds[0].get_text(strip=True).lower()
+                        for chave in rotulos:
+                            if chave in texto_rotulo:
+                                valor = tds[1].get_text(strip=True)
+                                print(f" Match: {chave} => {valor}")
+                                dados[rotulos[chave]] = valor
 
-        dados = {}
+                dados_gerais.append(dados)
 
-        print("110")
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
+                time.sleep(2)
 
-        for tr in soup.find_all("tr"):
-            tds = tr.find_all("td")
-            if len(tds) >= 2:
-                texto_rotulo = tds[0].get_text(strip=True).lower()
-                for chave in rotulos:
-                    if chave in texto_rotulo:
-                        valor = tds[1].get_text(strip=True)
-                        print(f" Match: {chave} => {valor}")
-                        dados[rotulos[chave]] = valor
+            except Exception as e:
+                print(f"Erro ao processar documento: {e}")
+                driver.switch_to.window(driver.window_handles[0])
+                continue
 
-        print("121")
-
-        dados_gerais.append(dados)
-        driver.back()
-        time.sleep(3)
-
-        for k,v in dados.items():
-            print("124")
-            print(f"{k}: {v}")
+    except StaleElementReferenceException:
+        print("Elemento da página expirou, recarregando a lista de botões.")
+        paginas = driver.find_elements(By.CSS_SELECTOR, ".paginate_button[data-dt-idx]")
+        continue
     except Exception as e:
-        print(f"Erro {e}")
+        print(f"Erro na paginação: {e}")
         continue
 
 
-df=pd.DataFrame(dados_gerais)
-
+df = pd.DataFrame(dados_gerais)
 caminho_arquivo = r"C:\Users\Vitor\Downloads\IC-FIIS\Relatório.xlsx"
-
 df.to_excel(caminho_arquivo, index=False)
 
 driver.quit()
