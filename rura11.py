@@ -68,7 +68,7 @@ paginas = driver.find_elements(By.CSS_SELECTOR, ".paginate_button[data-dt-idx]")
 indices_paginas = [int(btn.get_attribute("data-dt-idx")) for btn in paginas]
 dados_gerais = []
 
-# Itera sobre cada página
+
 for idx in indices_paginas:
     try:
         if idx != 1:
