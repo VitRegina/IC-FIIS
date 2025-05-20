@@ -5,10 +5,10 @@ from datetime import datetime
 class PostgresPipeline:
     def open_spider(self, spider):
         self.conn = psycopg2.connect(
-            host='localhost',
-            database='new_database',
-            user='postgres',
-            password='ifsp'
+            host="localhost",
+            database="FUNDOS",
+            user="postgres",
+            password="ifsp"
         )
         self.cur = self.conn.cursor()
 
