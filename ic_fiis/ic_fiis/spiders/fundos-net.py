@@ -97,6 +97,7 @@ class FnetSpider(scrapy.Spider):
                                     dados[rotulos[chave]] = valor
 
                     if dados:
+                        print("Dados para inserir no postgre",dados)
                         yield dados 
 
                     driver.close()

@@ -38,17 +38,30 @@ class PostgresPipeline:
                 return datetime.strptime(date_str, "%d/%m/%Y").date()
             except:
                 return None
+            
+        print("ITEM RECEBIDO >>>", item) 
 
-        valor_provento = float(item.get('valor do provento', '0').replace(',', '.'))
-        data_pagamento = parse_date(item.get('data do pagamento', ''))
-        data_base = parse_date(item.get('Data-base', ''))
-        periodo_referencia = parse_date(item.get('período de referência', ''))
+        valor_provento = float(item.get('valor_do_provento', '0').replace(',', '.'))
+        data_pagamento = parse_date(item.get('data_do_pagamento', ''))
+        data_base = parse_date(item.get('data_base', ''))
+        periodo_referencia = item.get('periodo_de_referencia', '')
 
-        self.cur.execute("""
-            INSERT INTO public.provento (fundo_id, valor_provento, data_pagamento, data_base, periodo_referencia, id_fundo)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """, (fundo_id, valor_provento, data_pagamento, data_base, periodo_referencia, fundo_id)
-        )
-        self.conn.commit()
+        print("Fundo ID:", fundo_id)
+        print("Valor do Provento:", valor_provento)
+        print("Data Pagamento:", data_pagamento)
+        print("Data Base:", data_base)
+        print("Período Referência:", periodo_referencia)
 
-        return item
+        try:
+            self.cur.execute("""
+                INSERT INTO public.provento (fundo_id, valor_provento, data_pagamento, data_base, periodo_referencia, id_fundo)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """, (fundo_id, valor_provento, data_pagamento, data_base, periodo_referencia, fundo_id)
+            )
+            self.conn.commit()
+            return item
+
+        except psycopg2.Error as e:
+            self.conn.rollback() 
+            print(f"[ERRO AO INSERIR PROVENTO] {e}")
+            return item
